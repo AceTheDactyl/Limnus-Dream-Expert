@@ -1,0 +1,42 @@
+{
+  "expo": {
+    "name": "Limnus - AI Dream Expert",
+    "slug": "encountering-dreams-symbolic-ai-jw034dgb-y031q0pa-effquol2-k0tfa0o5-ajzxw0tq-vxn3gr6j-6d2rkl1v-vd8xehvw-rmfo7ejy-xzg8iwqk-wncnihlk-wsdcu0fn-zev52p2l-g4ulev5s-ifladoor-z5tf8s3w-ierwe9gp-fc0vhzi7-a2vnkcz7-cy712ta3-90z9hpeo-ergj1py9-1dj0v74v-r4w5v3sd-iugkl0mj-hrxu73zq-pg2tplhg-9bogoziw-dfvnu2wr-z252erez-lnf2civm-92kbde0p-3cnfows2-llcw2l2e-razt7d65-rzzslf7z-u0do5boy-4yeeem8o",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/images/icon.png",
+    "scheme": "myapp",
+    "userInterfaceStyle": "automatic",
+    "newArchEnabled": false,
+    "splash": {
+      "image": "./assets/images/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#ffffff"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "app.rork.encountering-dreams-symbolic-ai-jw034dgb-y031q0pa-effquol2-k0tfa0o5-ajzxw0tq-vxn3gr6j-6d2rkl1v-vd8xehvw-rmfo7ejy-xzg8iwqk-wncnihlk-wsdcu0fn-zev52p2l-g4ulev5s-ifladoor-z5tf8s3w-ierwe9gp-fc0vhzi7-a2vnkcz7-cy712ta3-90z9hpeo-ergj1py9-1dj0v74v-r4w5v3sd-iugkl0mj-hrxu73zq-pg2tplhg-9bogoziw-dfvnu2wr-z252erez-lnf2civm-92kbde0p-3cnfows2-llcw2l2e-razt7d65-rzzslf7z-u0do5boy-4yeeem8o"
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/images/adaptive-icon.png",
+        "backgroundColor": "#ffffff"
+      },
+      "package": "app.rork.encountering-dreams-symbolic-ai-jw034dgb-y031q0pa-effquol2-k0tfa0o5-ajzxw0tq-vxn3gr6j-6d2rkl1v-vd8xehvw-rmfo7ejy-xzg8iwqk-wncnihlk-wsdcu0fn-zev52p2l-g4ulev5s-ifladoor-z5tf8s3w-ierwe9gp-fc0vhzi7-a2vnkcz7-cy712ta3-90z9hpeo-ergj1py9-1dj0v74v-r4w5v3sd-iugkl0mj-hrxu73zq-pg2tplhg-9bogoziw-dfvnu2wr-z252erez-lnf2civm-92kbde0p-3cnfows2-llcw2l2e-razt7d65-rzzslf7z-u0do5boy-4yeeem8o"
+    },
+    "web": {
+      "favicon": "./assets/images/favicon.png"
+    },
+    "plugins": [
+      [
+        "expo-router",
+        {
+          "origin": "https://rork.com/"
+        }
+      ]
+    ],
+    "experiments": {
+      "typedRoutes": true
+    }
+  }
+}
