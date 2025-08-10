@@ -30,21 +30,7 @@ interface BreathPatternInsight {
   recentTrends: string;
 }
 
-// Unicode-safe hash function
-const createUnicodeHash = (input: string): string => {
-  let hash = 0;
-  if (input.length === 0) return hash.toString(16).padStart(16, '0');
-  
-  for (let i = 0; i < input.length; i++) {
-    const char = input.charCodeAt(i);
-    hash = ((hash << 5) - hash) + char;
-    hash = hash & hash; // Convert to 32-bit integer
-  }
-  
-  // Convert to positive hex string
-  const hexHash = Math.abs(hash).toString(16);
-  return hexHash.padStart(16, '0').slice(0, 16);
-};
+
 
 export class InterpretationService {
   private static readonly API_URL = 'https://toolkit.rork.com/text/llm/';
@@ -280,100 +266,171 @@ Recent Integrated Cycles:
   
   private static async buildSimilarDreamsContext(dreamText: string): Promise<string> {
     try {
+      console.log('Building similar dreams context for neural sigil analysis');
+      
       // Import helper functions
       const { generateSigilVector, detectBrainRegion, extractKeySymbols, analyzePatternConnections } = await import('@/utils/neuralSigilHelpers');
       
-      // Generate a temporary sigil for the new dream text to find matches
-      const { generateNeuralSigil, findSimilarBySigil } = useNeuralSigilStore.getState();
-      const { getDreamBySigilId } = useDreamStore.getState();
+      // Safely get store states with error handling
+      let neuralSigilStore, dreamStore;
+      try {
+        neuralSigilStore = useNeuralSigilStore.getState();
+        dreamStore = useDreamStore.getState();
+      } catch (storeError) {
+        console.warn('Store access error, using fallback analysis:', storeError);
+        return this.buildFallbackNeuralAnalysis(dreamText);
+      }
       
-      // Create temporary sigil for similarity matching
-      const tempSigil = await generateNeuralSigil(dreamText, 'dream');
-      
-      // Find similar sigils
-      const similarSigils = await findSimilarBySigil(tempSigil.id, 0.65);
+      // Ensure neural system is initialized
+      try {
+        await neuralSigilStore.initializeNeuralSystem();
+      } catch (initError) {
+        console.warn('Neural system initialization failed:', initError);
+        return this.buildFallbackNeuralAnalysis(dreamText);
+      }
       
       let context = "NEURAL SIGIL PATTERN ANALYSIS:\n";
-      context += `Current Dream Neural Pattern: ${tempSigil.brainRegion} activation\n\n`;
       
-      if (similarSigils.length > 0) {
-        context += `RESONANT CONSCIOUSNESS PATTERNS DETECTED:\n`;
-        context += `This dream's neural pattern resonates with ${similarSigils.length} past experiences:\n\n`;
+      // Generate basic neural analysis without creating a full sigil
+      const brainRegion = detectBrainRegion({ text: dreamText });
+      context += `Current Dream Neural Pattern: ${brainRegion} activation\n\n`;
+      
+      // Try to find similar patterns in existing sigils
+      const existingSigils = neuralSigilStore.neuralSigils || [];
+      console.log(`Analyzing against ${existingSigils.length} existing sigils`);
+      
+      if (existingSigils.length > 0) {
+        // Generate a temporary vector for comparison
+        const dreamVector = generateSigilVector({ text: dreamText });
+        const similarities: {sigil: any, similarity: number}[] = [];
         
-        // Limit to top 5 most similar for comprehensive analysis
-        const topSimilar = similarSigils.slice(0, 5);
-        
-        for (const { sigil, similarity } of topSimilar) {
-          const similarityPercent = (similarity * 100).toFixed(0);
-          
-          if (sigil.sourceType === 'dream') {
-            // Find the dream associated with this sigil
-            const associatedDream = getDreamBySigilId(sigil.id);
-            
-            if (associatedDream) {
-              const dreamType = associatedDream.dreamType || 'unknown';
-              const persona = associatedDream.persona || 'unknown';
+        // Calculate similarities with existing sigils
+        for (const sigil of existingSigils.slice(0, 20)) { // Limit to prevent performance issues
+          try {
+            if (sigil.pattern && Array.isArray(sigil.pattern)) {
+              const similarity = neuralSigilStore.calculateSimilarity(
+                { pattern: new Float32Array(dreamVector) } as any,
+                sigil
+              );
               
-              context += `\n[DREAM RESONANCE ${similarityPercent}%] "${associatedDream.title || associatedDream.name}"\n`;
-              context += `  - Type: ${dreamType} | Interpreted by: ${persona}\n`;
-              context += `  - Key Symbols: ${extractKeySymbols(associatedDream.content || associatedDream.text || '')}\n`;
-              context += `  - Neural Pattern: ${sigil.brainRegion} activation\n`;
-              context += `  - Date: ${new Date(associatedDream.timestamp || Date.now()).toLocaleDateString()}\n`;
-              
-              // Add neural sigil metadata if available
-              if (sigil.metadata?.neuralSigilData) {
-                const neuralData = sigil.metadata.neuralSigilData;
-                context += `  - Neural Context: ${neuralData.category} | Breath Phase: ${neuralData.breathPhase}\n`;
-                if (neuralData.neurochemistry) {
-                  context += `  - Neurochemistry: ${neuralData.neurochemistry}\n`;
-                }
+              if (similarity > 0.65) {
+                similarities.push({ sigil, similarity });
               }
             }
-          } else if (sigil.sourceType === 'meditation' || sigil.sourceType === 'breath') {
-            context += `\n[MEDITATION RESONANCE ${similarityPercent}%]\n`;
-            context += `  - Brain Region: ${sigil.brainRegion}\n`;
-            context += `  - Source Type: ${sigil.sourceType}\n`;
-            context += `  - Date: ${new Date(sigil.timestamp).toLocaleDateString()}\n`;
-            
-            if (sigil.metadata?.neuralSigilData) {
-              const neuralData = sigil.metadata.neuralSigilData;
-              context += `  - Neural Context: ${neuralData.category} | Breath Phase: ${neuralData.breathPhase}\n`;
-            }
+          } catch (simError) {
+            console.warn('Similarity calculation error:', simError);
           }
         }
         
-        // Add comprehensive pattern insights
-        const patternInsights = analyzePatternConnections(topSimilar);
-        context += `\n\nPATTERN INSIGHTS:\n${patternInsights}\n`;
+        // Sort by similarity
+        similarities.sort((a, b) => b.similarity - a.similarity);
+        const topSimilar = similarities.slice(0, 5);
         
-        // Add breath phase correlations if available
-        const breathPhases = topSimilar
-          .map(s => s.sigil.metadata?.neuralSigilData?.breathPhase)
-          .filter(phase => phase)
-          .reduce((acc, phase) => {
-            if (phase) acc[phase] = (acc[phase] || 0) + 1;
-            return acc;
-          }, {} as Record<string, number>);
-        
-        if (Object.keys(breathPhases).length > 0) {
-          const dominantBreathPhase = Object.entries(breathPhases)
-            .sort(([,a], [,b]) => b - a)[0]?.[0];
-          context += `\nBREATH PHASE CORRELATION: ${dominantBreathPhase}\n`;
+        if (topSimilar.length > 0) {
+          context += `RESONANT CONSCIOUSNESS PATTERNS DETECTED:\n`;
+          context += `This dream's neural pattern resonates with ${topSimilar.length} past experiences:\n\n`;
+          
+          for (const { sigil, similarity } of topSimilar) {
+            const similarityPercent = (similarity * 100).toFixed(0);
+            
+            if (sigil.sourceType === 'dream') {
+              // Find the dream associated with this sigil
+              const associatedDream = dreamStore.getDreamBySigilId?.(sigil.id);
+              
+              if (associatedDream) {
+                const dreamType = associatedDream.dreamType || 'unknown';
+                const persona = associatedDream.persona || 'unknown';
+                
+                context += `\n[DREAM RESONANCE ${similarityPercent}%] "${associatedDream.title || associatedDream.name}"\n`;
+                context += `  - Type: ${dreamType} | Interpreted by: ${persona}\n`;
+                context += `  - Key Symbols: ${extractKeySymbols(associatedDream.content || associatedDream.text || '')}\n`;
+                context += `  - Neural Pattern: ${sigil.brainRegion} activation\n`;
+                context += `  - Date: ${new Date(associatedDream.timestamp || Date.now()).toLocaleDateString()}\n`;
+                
+                // Add neural sigil metadata if available
+                if (sigil.metadata?.neuralSigilData) {
+                  const neuralData = sigil.metadata.neuralSigilData;
+                  context += `  - Neural Context: ${neuralData.category} | Breath Phase: ${neuralData.breathPhase}\n`;
+                  if (neuralData.neurochemistry) {
+                    context += `  - Neurochemistry: ${neuralData.neurochemistry}\n`;
+                  }
+                }
+              }
+            } else if (sigil.sourceType === 'meditation' || sigil.sourceType === 'breath') {
+              context += `\n[MEDITATION RESONANCE ${similarityPercent}%]\n`;
+              context += `  - Brain Region: ${sigil.brainRegion}\n`;
+              context += `  - Source Type: ${sigil.sourceType}\n`;
+              context += `  - Date: ${new Date(sigil.timestamp).toLocaleDateString()}\n`;
+              
+              if (sigil.metadata?.neuralSigilData) {
+                const neuralData = sigil.metadata.neuralSigilData;
+                context += `  - Neural Context: ${neuralData.category} | Breath Phase: ${neuralData.breathPhase}\n`;
+              }
+            }
+          }
+          
+          // Add comprehensive pattern insights
+          const patternInsights = analyzePatternConnections(topSimilar);
+          context += `\n\nPATTERN INSIGHTS:\n${patternInsights}\n`;
+          
+          // Add breath phase correlations if available
+          const breathPhases = topSimilar
+            .map(s => s.sigil.metadata?.neuralSigilData?.breathPhase)
+            .filter(phase => phase)
+            .reduce((acc, phase) => {
+              if (phase) acc[phase] = (acc[phase] || 0) + 1;
+              return acc;
+            }, {} as Record<string, number>);
+          
+          if (Object.keys(breathPhases).length > 0) {
+            const dominantBreathPhase = Object.entries(breathPhases)
+              .sort(([,a], [,b]) => (b as number) - (a as number))[0]?.[0];
+            context += `\nBREATH PHASE CORRELATION: ${dominantBreathPhase}\n`;
+          }
+        } else {
+          context += "This dream presents a NOVEL neural pattern - no strong resonances found in your consciousness history.\n";
+          context += "This suggests either:\n";
+          context += "- A breakthrough into unexplored consciousness territory\n";
+          context += "- Integration of new archetypal material\n";
+          context += "- Evolution beyond previous neural patterns\n";
+          context += "- Emergence of new consciousness capacities\n";
         }
-        
       } else {
-        context += "This dream presents a NOVEL neural pattern - no strong resonances found in your consciousness history.\n";
-        context += "This suggests either:\n";
-        context += "- A breakthrough into unexplored consciousness territory\n";
-        context += "- Integration of new archetypal material\n";
-        context += "- Evolution beyond previous neural patterns\n";
-        context += "- Emergence of new consciousness capacities\n";
+        context += "Neural sigil database is initializing. This appears to be your first dream analysis.\n";
+        context += "Beginning consciousness pattern recognition...\n";
       }
       
       return context;
     } catch (error) {
       console.error('Error building similar dreams context:', error);
-      return "NEURAL SIGIL PATTERN ANALYSIS:\nUnable to analyze neural patterns at this time. System initializing...\n";
+      return this.buildFallbackNeuralAnalysis(dreamText);
+    }
+  }
+  
+  private static buildFallbackNeuralAnalysis(dreamText: string): string {
+    try {
+      // Simple fallback analysis without store dependencies
+      let context = "NEURAL SIGIL PATTERN ANALYSIS:\n";
+      context += "System initializing neural pattern recognition...\n\n";
+      
+      // Basic text analysis
+      const words = dreamText.toLowerCase().split(/\s+/);
+      const emotionalWords = ['love', 'fear', 'joy', 'anger', 'sad', 'happy', 'excited', 'calm', 'anxious', 'peaceful'];
+      const emotionalCount = words.filter(w => emotionalWords.includes(w)).length;
+      
+      if (emotionalCount > 2) {
+        context += "Strong emotional resonance detected - Limbic activation likely\n";
+      } else if (words.length > 50) {
+        context += "Complex narrative structure - Cortical processing patterns\n";
+      } else {
+        context += "Integrative consciousness patterns - Thalamic coordination\n";
+      }
+      
+      context += "\nThis analysis will improve as your neural sigil database grows.\n";
+      return context;
+    } catch (error) {
+      console.error('Fallback analysis error:', error);
+      return "NEURAL SIGIL PATTERN ANALYSIS:\nBasic analysis mode - system initializing...\n";
     }
   }
 
