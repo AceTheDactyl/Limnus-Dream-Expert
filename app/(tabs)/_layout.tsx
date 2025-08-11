@@ -1,6 +1,6 @@
 import React from "react";
 import { Tabs } from "expo-router";
-import { Brain, BookOpen, Sparkles, Flower, Hexagon, Zap } from "lucide-react-native";
+import { Brain, BookOpen, Sparkles, Flower, Hexagon, Zap, Orbit } from "lucide-react-native";
 import Colors from "@/constants/colors";
 
 export default function TabLayout() {
@@ -73,6 +73,13 @@ export default function TabLayout() {
         options={{
           title: "Neural",
           tabBarIcon: ({ color }) => <Zap size={24} color={color} />,
+        }}
+      />
+      <Tabs.Screen
+        name="limnus"
+        options={{
+          title: "LIMNUS",
+          tabBarIcon: ({ color }) => <Orbit size={24} color={color} />,
         }}
       />
     </Tabs>
